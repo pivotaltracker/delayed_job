@@ -27,7 +27,7 @@ module Delayed
     cattr_reader :backend
 
     # name_prefix is ignored if name is set directly
-    attr_accessor :name_prefix
+    attr_accessor :name_prefix, :job_class
 
     def self.reset
       self.sleep_delay      = DEFAULT_SLEEP_DELAY
@@ -113,6 +113,7 @@ module Delayed
         self.class.send("#{option}=", options[option]) if options.has_key?(option)
       end
 
+      self.job_class = options[:job_class]
       self.plugins.each { |klass| klass.new }
     end
 
@@ -268,15 +269,19 @@ module Delayed
     end
 
     def reserve_job
-      job = Delayed::Job.reserve(self)
+      job = job_class.reserve(self)
       @failed_reserve_count = 0
       job
     rescue Exception => error
       say "Error while reserving job: #{error}"
-      Delayed::Job.recover_from(error)
+      job_class.recover_from(error)
       @failed_reserve_count += 1
       raise FatalBackendError if @failed_reserve_count >= 10
       nil
+    end
+
+    def job_class
+      @job_class || Delayed::Job
     end
   end
 

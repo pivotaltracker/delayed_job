@@ -98,5 +98,12 @@ describe Delayed::Worker do
       expect(Delayed::Job).to receive(:recover_from).with(instance_of(Exception))
       Delayed::Worker.new.work_off
     end
+
+    it "allows for an injected job_class" do
+      test_job_class = double
+      worker = Delayed::Worker.new(job_class: test_job_class)
+      expect(test_job_class).to receive(:reserve).with(worker).and_return(nil)
+      worker.work_off(1)
+    end
   end
 end
