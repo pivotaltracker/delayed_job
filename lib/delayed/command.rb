@@ -64,8 +64,15 @@ module Delayed
         opts.on('--exit-on-complete', "Exit when no more jobs are available to run. This will exit if all jobs are scheduled to run in the future.") do
           @options[:exit_on_complete] = true
         end
+        opts.on('--worker-class=worker_class', "the worker class to use") do |worker_class|
+          @options[:worker_class] = worker_class.constantize
+        end
       end
       @args = opts.parse!(args)
+    end
+
+    def worker_class
+      @options.fetch(:worker_class, Delayed::Worker)
     end
 
     def daemonize
@@ -86,7 +93,7 @@ module Delayed
     end
 
     def run_process(process_name, dir)
-      Delayed::Worker.before_fork
+      worker_class.before_fork
       Daemons.run_proc(process_name, :dir => dir, :dir_mode => :normal, :monitor => @monitor, :ARGV => @args) do |*args|
         $0 = File.join(@options[:prefix], process_name) if @options[:prefix]
         run process_name
@@ -96,10 +103,10 @@ module Delayed
     def run(worker_name = nil)
       Dir.chdir(Rails.root)
 
-      Delayed::Worker.after_fork
-      Delayed::Worker.logger ||= Logger.new(File.join(Rails.root, 'log', 'delayed_job.log'))
+      worker_class.after_fork
+      worker_class.logger ||= Logger.new(File.join(Rails.root, 'log', 'delayed_job.log'))
 
-      worker = Delayed::Worker.new(@options)
+      worker = worker_class.new(@options)
       worker.name_prefix = "#{worker_name} "
       worker.start
     rescue => e
