@@ -1,6 +1,46 @@
 require 'helper'
 
 describe Delayed::Worker do
+  describe "#run (called via #start) removal of completed jobs" do
+    before do
+      @worker = Delayed::Worker.new(:exit_on_complete => true)
+      @job = double('job', :id => 123, :name => 'ExampleJob', :invoke_job => true, :destroy => true, :attempts => 42, :attempts= => true, :max_attempts => 2, :hook => nil)
+      expect(Delayed::Job).to receive(:reserve).at_least(:once) do
+        value = @already_did_one ? nil : @job
+        @already_did_one = true
+        value
+      end
+    end
+
+    it "works if the destroy succeeds" do
+      @worker.start
+    end
+
+    describe "when deadlocks occur" do
+      before do
+        @activerecord_error = ActiveRecord::StatementInvalid.exception("Mysql2::Error: Lock wait timeout exceeded; try restarting transaction: DELETE FROM delayed_job WHERE id = 42")
+
+        @counter = 0
+        @n = -1
+        @job.stub(:destroy) do
+          @counter += 1
+          raise @activerecord_error if @counter <= @n
+        end
+      end
+
+      it "retries up to 3 times if destroy fails with a deadlock before succeeding" do
+        @n = 3
+        @worker.start
+      end
+
+      it "raises a deadlock exception if destroy raises one more than 3 times" do
+        @n = 4
+        @job.should_receive(:last_error=)
+        @worker.start
+      end
+    end
+  end
+
   describe "backend=" do
     before do
       @clazz = Class.new
