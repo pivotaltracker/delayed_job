@@ -1,3 +1,7 @@
+4.0.4242 - 2015-07-10
+=====================
+* Bump version to something specific for Tracker
+
 4.0.0 - 2013-07-30
 ==================
 * Rails 4 compatibility
