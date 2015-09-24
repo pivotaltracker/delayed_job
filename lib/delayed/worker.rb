@@ -205,9 +205,7 @@ module Delayed
       job_say job, 'RUNNING'
       runtime =  Benchmark.realtime do
         Timeout.timeout(self.class.max_run_time.to_i, WorkerTimeout) { job.invoke_job }
-        deadlock_retry do
-          job.destroy
-        end
+        job.destroy
       end
       job_say job, 'COMPLETED after %.4f' % runtime
       return true  # did work
@@ -255,7 +253,7 @@ module Delayed
       job.max_attempts || self.class.max_attempts
     end
 
-    protected
+  protected
 
     def handle_failed_job(job, error)
       job.last_error = "#{error.message}\n#{error.backtrace.join("\n")}"
@@ -285,30 +283,6 @@ module Delayed
     def job_class
       @job_class || Delayed::Job
     end
-
-    NUMBER_OF_DEADLOCK_RETRIES = 3
-    DEADLOCK_ERROR_MESSAGES = [
-        "Deadlock found when trying to get lock",
-        "Lock wait timeout exceeded"
-    ]
-    def deadlock_retry
-      deadlock_retry_counter = 0
-      begin
-        yield
-      rescue ActiveRecord::StatementInvalid => e
-        if DEADLOCK_ERROR_MESSAGES.any? { |deadlock_message| e.message.include?(deadlock_message) }
-          deadlock_retry_counter += 1
-          if deadlock_retry_counter <= NUMBER_OF_DEADLOCK_RETRIES
-            retry
-          else
-            raise DeadlockRetryError, 'DeadlockRetryError:: Exceeded Maximum number of retries'
-          end
-        end
-
-        raise
-      end
-    end
   end
 
-  class DeadlockRetryError < StandardError ;end
 end
