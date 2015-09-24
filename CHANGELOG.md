@@ -1,3 +1,7 @@
+4.0.4243 - 2015-09-24
+=====================
+* Remove deadlock retry on job destroy
+
 4.0.4242 - 2015-07-10
 =====================
 * Bump version to something specific for Tracker
