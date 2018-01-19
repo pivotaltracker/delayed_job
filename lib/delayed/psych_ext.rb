@@ -107,7 +107,7 @@ module Psych
           payload = Hash[*object.children.map { |c| accept c }]
           id = payload["attributes"][klass.primary_key]
           begin
-            klass.unscoped.find(id)
+            klass.unscoped.find(id.value)
           rescue ActiveRecord::RecordNotFound
             raise Delayed::DeserializationError
           end
